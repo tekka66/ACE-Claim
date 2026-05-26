@@ -1,0 +1,1057 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ACE Claim System - Cloud Sync</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #fef7e8; font-family: 'Segoe UI', sans-serif; }
+        
+        .login-container { min-height: 100vh; display: flex; align-items: center; justify-content: center; background: linear-gradient(135deg, #f59e0b, #ea580c); }
+        .login-card { background: white; border-radius: 24px; padding: 40px; width: 420px; }
+        .login-card h1 { color: #9a3412; text-align: center; margin-bottom: 10px; }
+        .login-card .logo { text-align: center; margin-bottom: 20px; }
+        .login-card input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #fed7aa; border-radius: 8px; font-size: 16px; }
+        .login-card button { width: 100%; padding: 12px; background: #f59e0b; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 16px; }
+        .error-msg { color: #ef4444; font-size: 12px; margin-top: 10px; text-align: center; }
+        
+        .app-container { max-width: 1400px; margin: 0 auto; padding: 20px; display: none; }
+        .card { background: white; border-radius: 16px; padding: 24px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; margin: 5px; }
+        .btn-primary { background: #f59e0b; color: white; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-secondary { background: #78350f; color: white; }
+        .btn-success { background: #10b981; color: white; }
+        .btn-info { background: #3b82f6; color: white; }
+        
+        h2 { color: #9a3412; margin-bottom: 20px; }
+        h3 { color: #78350f; margin: 15px 0 10px 0; }
+        
+        .folder-item, .event-item { padding: 15px; margin: 8px 0; background: #fff7ed; border-radius: 8px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border: 1px solid #fed7aa; }
+        .folder-item:hover, .event-item:hover { background: #ffedd5; }
+        
+        .top-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; }
+        .user-badge { background: #fef3c7; padding: 8px 16px; border-radius: 20px; font-weight: 600; }
+        .nav-buttons { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+        
+        input, select, textarea { padding: 10px; border: 1px solid #fed7aa; border-radius: 8px; width: 100%; margin: 5px 0; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: 600; margin-bottom: 5px; color: #78350f; }
+        
+        .claim-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .claim-table th, .claim-table td { border: 1px solid #fed7aa; padding: 8px; text-align: left; vertical-align: top; }
+        .claim-table th { background: #fef3c7; font-weight: 600; }
+        
+        .report-table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .report-table th, .report-table td { border: 1px solid #fed7aa; padding: 8px; vertical-align: top; }
+        .report-table th { background: #fef3c7; font-weight: 600; text-align: left; }
+        
+        .inline-form { background: #fefce8; padding: 20px; border-radius: 12px; margin-top: 20px; border: 2px solid #f59e0b; }
+        .hidden { display: none; }
+        .event-detail-header { background: #fef3c7; padding: 15px; border-radius: 12px; margin-bottom: 20px; }
+        
+        .ocr-progress { margin-top: 10px; display: none; }
+        .progress-bar { width: 100%; height: 6px; background: #ffedd5; border-radius: 3px; overflow: hidden; }
+        .progress-fill { height: 100%; background: #f59e0b; width: 0%; transition: width 0.3s; }
+        .ocr-status-text { font-size: 11px; color: #78350f; margin-top: 5px; }
+        
+        .upload-area { border: 2px dashed #fdba74; border-radius: 12px; padding: 20px; text-align: center; background: #fff7ed; cursor: pointer; margin-bottom: 15px; }
+        .upload-area:hover { border-color: #f59e0b; background: #fffbeb; }
+        
+        .receipt-preview { max-width: 100px; max-height: 80px; object-fit: contain; border-radius: 4px; margin: 5px; cursor: pointer; border: 1px solid #fed7aa; }
+        .receipt-preview:hover { opacity: 0.8; transform: scale(1.05); }
+        
+        .image-preview-modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 2000; display: flex; justify-content: center; align-items: center; cursor: pointer; }
+        .image-preview-modal img { max-width: 90%; max-height: 90%; object-fit: contain; }
+        
+        .receipts-grid { display: flex; flex-wrap: wrap; gap: 15px; margin-top: 10px; }
+        .receipt-card-item { border: 1px solid #fed7aa; border-radius: 8px; padding: 10px; width: 280px; background: white; }
+        
+        .search-bar { display: flex; gap: 10px; margin-bottom: 20px; }
+        .search-bar input { flex: 1; }
+        
+        .action-buttons { display: flex; gap: 5px; flex-wrap: wrap; }
+        .event-list-container { max-height: 400px; overflow-y: auto; }
+        
+        .sync-status { position: fixed; bottom: 15px; right: 15px; background: #10b981; color: white; padding: 6px 12px; border-radius: 20px; font-size: 11px; z-index: 1000; cursor: pointer; }
+        .sync-status.offline { background: #ef4444; }
+        
+        @media print {
+            body * { visibility: hidden; }
+            .print-report, .print-report * { visibility: visible; }
+            .print-report { position: absolute; top: 0; left: 0; width: 100%; padding: 20px; }
+            @page { size: landscape; margin: 1cm; }
+            .report-table td img { max-width: 180px !important; max-height: 140px !important; }
+            .no-print { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="loginPage" class="login-container">
+    <div class="login-card">
+        <div class="logo">
+            <div style="background: linear-gradient(135deg, #f59e0b, #ea580c); width: 60px; height: 60px; border-radius: 60px; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+                <i class="fas fa-file-invoice" style="font-size: 30px; color: white;"></i>
+            </div>
+            <h1>ACE Claim System</h1>
+            <p style="color: #78350f;">Above Creative Events</p>
+        </div>
+        
+        <input type="text" id="loginUsername" placeholder="Username">
+        <input type="password" id="loginPassword" placeholder="Password">
+        <button onclick="doLogin()">Login</button>
+        <div id="loginError" class="error-msg"></div>
+        <p style="margin-top:15px; font-size:12px; text-align:center;">
+            <strong>Demo Accounts:</strong><br>
+            user1 / pass123 | admin / admin123
+        </p>
+        <div class="sync-status offline" style="position: static; margin-top: 15px; text-align: center; display: block;" id="syncStatus">💾 Local Storage Mode</div>
+    </div>
+</div>
+
+<div id="mainApp" class="app-container">
+    <div class="top-bar">
+        <h2>ACE Claim System</h2>
+        <div>
+            <span id="userDisplay" class="user-badge"></span>
+            <button class="btn btn-danger" onclick="doLogout()">Logout</button>
+        </div>
+    </div>
+    
+    <div class="nav-buttons">
+        <button class="btn btn-primary" onclick="showAccounts()">Accounts</button>
+        <button class="btn btn-primary" onclick="showEvents()">My Events</button>
+        <button class="btn btn-primary" onclick="showUsers()">Users</button>
+        <button class="btn btn-primary" onclick="showReports()">Reports</button>
+    </div>
+    
+    <div id="accountsPanel" class="card">
+        <h2>Account Folders</h2>
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <input type="text" id="newAccountInput" placeholder="New account name" style="flex:1;">
+            <button class="btn btn-primary" onclick="createAccount()">Create Account</button>
+        </div>
+        <div id="accountsList"></div>
+        <div id="accountEventsPanel" style="margin-top:20px;"></div>
+    </div>
+    
+    <div id="eventsPanel" class="card hidden">
+        <h2>My Events</h2>
+        <div class="search-bar">
+            <input type="text" id="eventSearchInput" placeholder="Search by event name..." onkeyup="filterEvents()">
+            <button class="btn btn-primary" onclick="filterEvents()"><i class="fas fa-search"></i> Search</button>
+        </div>
+        <div id="eventsList" class="event-list-container"></div>
+        <div id="eventClaimsPanel" style="margin-top:20px;"></div>
+    </div>
+    
+    <div id="usersPanel" class="card hidden">
+        <h2>User Management</h2>
+        <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+            <input type="text" id="newUser" placeholder="Username" style="flex:1;">
+            <input type="password" id="newPass" placeholder="Password" style="flex:1;">
+            <button class="btn btn-primary" onclick="createUser()">Create User</button>
+        </div>
+        <div id="usersList"></div>
+    </div>
+    
+    <div id="reportsPanel" class="card hidden">
+        <h2>Event Reports</h2>
+        <div class="search-bar">
+            <input type="text" id="reportSearchInput" placeholder="Search event..." onkeyup="filterReportEvents()">
+        </div>
+        <div id="eventsReportList" class="event-list-container"></div>
+        <div id="eventReportDetail"></div>
+    </div>
+</div>
+
+<script>
+    // ============ DATA ============
+    let currentUser = null;
+    let users = [];
+    let accounts = [];
+    let events = [];
+    let claims = [];
+    let partTimers = [];
+    
+    const currencies = ['MYR', 'SGD', 'USD', 'IDR', 'THB'];
+    const categoryOrder = ['Meals', 'Parking', 'Toll', 'Petrol', 'Transport', 'Others'];
+    const dayOptions = ['Meeting', 'Site Recce', 'Setup', 'Rehearsal', 'Event'];
+    
+    function initUsers() {
+        let stored = localStorage.getItem('ace_users');
+        if (stored) {
+            users = JSON.parse(stored);
+        } else {
+            users = [
+                { id: '1', username: 'user1', password: 'pass123' },
+                { id: '2', username: 'user2', password: 'pass123' },
+                { id: '3', username: 'admin', password: 'admin123' }
+            ];
+            localStorage.setItem('ace_users', JSON.stringify(users));
+        }
+    }
+    
+    function loadData() {
+        initUsers();
+        accounts = JSON.parse(localStorage.getItem('ace_accounts') || '[]');
+        events = JSON.parse(localStorage.getItem('ace_events') || '[]');
+        claims = JSON.parse(localStorage.getItem('ace_claims') || '[]');
+        partTimers = JSON.parse(localStorage.getItem('ace_part_timers') || '[]');
+    }
+    
+    function saveUsers() { localStorage.setItem('ace_users', JSON.stringify(users)); }
+    function saveAccounts() { localStorage.setItem('ace_accounts', JSON.stringify(accounts)); }
+    function saveEvents() { localStorage.setItem('ace_events', JSON.stringify(events)); }
+    function saveClaims() { localStorage.setItem('ace_claims', JSON.stringify(claims)); }
+    function savePartTimers() { localStorage.setItem('ace_part_timers', JSON.stringify(partTimers)); }
+    
+    // Export/Import for sharing
+    function exportData() {
+        const data = { accounts, events, claims, partTimers };
+        const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ace_data_${new Date().toISOString().slice(0,10)}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+        alert('Data exported! Share this file with your team.');
+    }
+    
+    function importData() {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.json';
+        input.onchange = function(e) {
+            const file = e.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(ev) {
+                try {
+                    const data = JSON.parse(ev.target.result);
+                    if (data.accounts) accounts = data.accounts;
+                    if (data.events) events = data.events;
+                    if (data.claims) claims = data.claims;
+                    if (data.partTimers) partTimers = data.partTimers;
+                    saveAccounts(); saveEvents(); saveClaims(); savePartTimers();
+                    alert('Data imported! Refreshing...');
+                    location.reload();
+                } catch(err) { alert('Invalid file'); }
+            };
+            reader.readAsText(file);
+        };
+        input.click();
+    }
+    
+    // ============ OCR FUNCTIONS ============
+    async function performOCR(imageDataUrl) {
+        return new Promise((resolve) => {
+            const img = new Image();
+            img.onload = async () => {
+                try {
+                    const result = await Tesseract.recognize(img, 'eng+msa');
+                    resolve(result.data.text);
+                } catch(e) { resolve(''); }
+            };
+            img.onerror = () => resolve('');
+            img.src = imageDataUrl;
+        });
+    }
+    
+    async function extractReceiptData(imageDataUrl) {
+        const text = await performOCR(imageDataUrl);
+        const dateMatch = text.match(/\b(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\b/);
+        let date = dateMatch ? `${dateMatch[3]}-${dateMatch[2].padStart(2,'0')}-${dateMatch[1].padStart(2,'0')}` : new Date().toISOString().split('T')[0];
+        let amount = 0;
+        let currency = 'MYR';
+        const currencyPatterns = [
+            { regex: /RM\s*(\d+(?:\.\d{2})?)/i, curr: 'MYR' },
+            { regex: /S\$?\s*(\d+(?:\.\d{2})?)/i, curr: 'SGD' },
+            { regex: /\$\s*(\d+(?:\.\d{2})?)/i, curr: 'USD' },
+            { regex: /Rp\s*(\d+(?:\.\d{2})?)/i, curr: 'IDR' },
+            { regex: /฿\s*(\d+(?:\.\d{2})?)/i, curr: 'THB' }
+        ];
+        for (let pattern of currencyPatterns) {
+            const match = text.match(pattern.regex);
+            if (match) {
+                amount = parseFloat(match[1]);
+                currency = pattern.curr;
+                break;
+            }
+        }
+        if (amount === 0) {
+            const numMatch = text.match(/(\d+\.\d{2})/);
+            if (numMatch) amount = parseFloat(numMatch[1]);
+        }
+        const lower = text.toLowerCase();
+        let category = 'Meals';
+        if (/(parking|parkir|carpark)/i.test(lower)) category = 'Parking';
+        else if (/(toll|highway|plus)/i.test(lower)) category = 'Toll';
+        else if (/(petrol|fuel|diesel|shell)/i.test(lower)) category = 'Petrol';
+        else if (/(transport|grab|taxi|bus|lrt|train|uber)/i.test(lower)) category = 'Transport';
+        return { date, amount, currency, category };
+    }
+    
+    async function extractPartTimerData(imageDataUrl) {
+        const text = await performOCR(imageDataUrl);
+        let name = '';
+        const nameMatch = text.match(/[A-Z][a-z]+ [A-Z][a-z]+/);
+        if (nameMatch) name = nameMatch[0];
+        let icNumber = '';
+        const icMatch = text.match(/\b\d{6}-\d{2}-\d{4}\b/);
+        if (icMatch) icNumber = icMatch[0];
+        return { name, icNumber };
+    }
+    
+    // ============ LOGIN ============
+    function doLogin() {
+        let username = document.getElementById('loginUsername').value.trim().toLowerCase();
+        let password = document.getElementById('loginPassword').value;
+        loadData();
+        let user = users.find(u => u.username.toLowerCase() === username && u.password === password);
+        if (user) {
+            currentUser = user;
+            document.getElementById('loginPage').style.display = 'none';
+            document.getElementById('mainApp').style.display = 'block';
+            document.getElementById('userDisplay').innerHTML = user.username;
+            showEvents();
+        } else {
+            document.getElementById('loginError').innerHTML = 'Invalid login. Try: user1 / pass123';
+        }
+    }
+    
+    function doLogout() {
+        currentUser = null;
+        document.getElementById('mainApp').style.display = 'none';
+        document.getElementById('loginPage').style.display = 'flex';
+        document.getElementById('loginUsername').value = '';
+        document.getElementById('loginPassword').value = '';
+        document.getElementById('loginError').innerHTML = '';
+    }
+    
+    // ============ PANELS ============
+    function showAccounts() {
+        document.getElementById('accountsPanel').classList.remove('hidden');
+        document.getElementById('eventsPanel').classList.add('hidden');
+        document.getElementById('usersPanel').classList.add('hidden');
+        document.getElementById('reportsPanel').classList.add('hidden');
+        renderAccounts();
+    }
+    
+    function showEvents() {
+        document.getElementById('accountsPanel').classList.add('hidden');
+        document.getElementById('eventsPanel').classList.remove('hidden');
+        document.getElementById('usersPanel').classList.add('hidden');
+        document.getElementById('reportsPanel').classList.add('hidden');
+        renderEvents();
+        document.getElementById('eventClaimsPanel').innerHTML = '';
+    }
+    
+    function showUsers() {
+        document.getElementById('accountsPanel').classList.add('hidden');
+        document.getElementById('eventsPanel').classList.add('hidden');
+        document.getElementById('usersPanel').classList.remove('hidden');
+        document.getElementById('reportsPanel').classList.add('hidden');
+        renderUsers();
+    }
+    
+    function showReports() {
+        document.getElementById('accountsPanel').classList.add('hidden');
+        document.getElementById('eventsPanel').classList.add('hidden');
+        document.getElementById('usersPanel').classList.add('hidden');
+        document.getElementById('reportsPanel').classList.remove('hidden');
+        renderReportEvents();
+    }
+    
+    // ============ ACCOUNTS ============
+    function renderAccounts() {
+        let container = document.getElementById('accountsList');
+        if (accounts.length === 0) {
+            container.innerHTML = '<p>No accounts yet.</p>';
+            return;
+        }
+        container.innerHTML = accounts.map(acc => `
+            <div class="folder-item">
+                <div onclick="showAccountEvents('${acc.id}')" style="flex:1;">
+                    <strong>📁 ${escapeHtml(acc.name)}</strong>
+                    <div style="font-size:12px;">${events.filter(e => e.accountId === acc.id).length} events</div>
+                </div>
+                <button class="btn btn-danger" onclick="event.stopPropagation(); deleteAccount('${acc.id}')">Delete</button>
+            </div>
+        `).join('');
+    }
+    
+    function createAccount() {
+        let name = document.getElementById('newAccountInput').value.trim();
+        if (!name) { alert('Enter name'); return; }
+        accounts.push({ id: Date.now().toString(), name: name, createdAt: new Date().toISOString() });
+        saveAccounts();
+        document.getElementById('newAccountInput').value = '';
+        renderAccounts();
+    }
+    
+    function deleteAccount(id) {
+        if (confirm('Delete this account and all its events?')) {
+            let accountEvents = events.filter(e => e.accountId === id);
+            accounts = accounts.filter(a => a.id !== id);
+            events = events.filter(e => e.accountId !== id);
+            claims = claims.filter(c => !accountEvents.find(e => e.id === c.eventId));
+            saveAccounts(); saveEvents(); saveClaims();
+            renderAccounts();
+            renderEvents();
+            renderReportEvents();
+        }
+    }
+    
+    function showAccountEvents(accountId) {
+        let accountEvents = events.filter(e => e.accountId === accountId);
+        let accountName = accounts.find(a => a.id === accountId)?.name;
+        let html = `
+            <div style="margin-top:20px; padding:15px; background:#fefce8; border-radius:12px;">
+                <h3>${escapeHtml(accountName)} - Events</h3>
+                <button class="btn btn-primary" onclick="showCreateEventForm('${accountId}')" style="margin-bottom:15px;">+ Create New Event</button>
+                <div id="accountEventsList">
+        `;
+        if (accountEvents.length === 0) {
+            html += '<p>No events yet.</p>';
+        } else {
+            html += accountEvents.map(ev => `
+                <div style="padding:12px; margin:8px 0; background:white; border-radius:8px; border:1px solid #fed7aa;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
+                        <div>
+                            <strong>📅 ${escapeHtml(ev.name)}</strong>
+                            <div style="font-size:12px; color:#78350f; margin-top:4px;">
+                                📅 Event: ${ev.eventDate || 'TBD'} | 🔧 Setup: ${ev.setupDate || 'TBD'}
+                                ${ev.venue ? `<br>📍 Venue: ${escapeHtml(ev.venue)}` : ''}
+                                ${ev.pic ? `<br>👤 PIC: ${escapeHtml(ev.pic)}` : ''}
+                            </div>
+                        </div>
+                        <button class="btn btn-danger" style="padding:4px 12px;" onclick="deleteEvent('${ev.id}', '${accountId}')">Delete</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        html += `</div></div>`;
+        document.getElementById('accountEventsPanel').innerHTML = html;
+    }
+    
+    function showCreateEventForm(accountId) {
+        let existing = document.getElementById('createEventForm');
+        if (existing) existing.remove();
+        
+        let formHtml = `
+            <div id="createEventForm" style="margin-top:15px; padding:15px; background:white; border-radius:12px; border:2px solid #f59e0b;">
+                <h4><i class="fas fa-calendar-plus"></i> Create New Event</h4>
+                <div class="form-group"><label>Event Name *</label><input type="text" id="eventNameInput" placeholder="e.g., Annual Dinner 2025"></div>
+                <div class="form-group"><label>Event Date</label><input type="date" id="eventDateInput"></div>
+                <div class="form-group"><label>Setup Date</label><input type="date" id="setupDateInput"></div>
+                <div class="form-group"><label>Venue</label><input type="text" id="venueInput" placeholder="Event location"></div>
+                <div class="form-group"><label>Account PIC</label><input type="text" id="picInput" placeholder="Person in charge"></div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" onclick="createNewEvent('${accountId}')">Create Event</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('createEventForm').remove()">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('accountEventsPanel').insertAdjacentHTML('beforeend', formHtml);
+    }
+    
+    function createNewEvent(accountId) {
+        let name = document.getElementById('eventNameInput').value.trim();
+        if (!name) { alert('Enter event name'); return; }
+        events.push({
+            id: Date.now().toString(),
+            accountId: accountId,
+            name: name,
+            eventDate: document.getElementById('eventDateInput')?.value || '',
+            setupDate: document.getElementById('setupDateInput')?.value || '',
+            venue: document.getElementById('venueInput')?.value || '',
+            pic: document.getElementById('picInput')?.value || '',
+            createdAt: new Date().toISOString()
+        });
+        saveEvents();
+        document.getElementById('createEventForm')?.remove();
+        showAccountEvents(accountId);
+        renderEvents();
+        renderReportEvents();
+        alert(`Event "${name}" created!`);
+    }
+    
+    function deleteEvent(eventId, accountId) {
+        if (confirm('Delete this event?')) {
+            events = events.filter(e => e.id !== eventId);
+            claims = claims.filter(c => c.eventId !== eventId);
+            saveEvents(); saveClaims();
+            showAccountEvents(accountId);
+            renderEvents();
+            renderReportEvents();
+        }
+    }
+    
+    // ============ EVENTS WITH SEARCH ============
+    let currentFilteredEvents = [];
+    
+    function renderEvents() {
+        currentFilteredEvents = [...events];
+        filterEvents();
+    }
+    
+    function filterEvents() {
+        let searchTerm = document.getElementById('eventSearchInput').value.toLowerCase();
+        let filtered = events.filter(ev => {
+            let account = accounts.find(a => a.id === ev.accountId);
+            return ev.name.toLowerCase().includes(searchTerm) ||
+                   (account && account.name.toLowerCase().includes(searchTerm)) ||
+                   (ev.venue && ev.venue.toLowerCase().includes(searchTerm));
+        });
+        currentFilteredEvents = filtered;
+        
+        let container = document.getElementById('eventsList');
+        if (filtered.length === 0) {
+            container.innerHTML = '<p>No events found.</p>';
+            return;
+        }
+        
+        container.innerHTML = filtered.map(ev => {
+            let account = accounts.find(a => a.id === ev.accountId);
+            let myClaims = claims.filter(c => c.eventId === ev.id && c.claimant === currentUser.username);
+            let total = myClaims.reduce((s,c) => s + c.amount, 0);
+            return `
+                <div class="event-item" onclick="showEventClaims('${ev.id}')">
+                    <div>
+                        <strong>📅 ${escapeHtml(ev.name)}</strong>
+                        <div style="font-size:12px; color:#78350f;">
+                            ${account ? `📁 ${escapeHtml(account.name)}` : ''}
+                            ${ev.eventDate ? ` | 📅 ${ev.eventDate}` : ''}
+                            ${ev.venue ? ` | 📍 ${escapeHtml(ev.venue)}` : ''}
+                        </div>
+                        <div style="font-size:11px; color:#f59e0b;">My total: RM ${total.toFixed(2)} (${myClaims.length} items)</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function showEventClaims(eventId) {
+        let event = events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        let myClaims = claims.filter(c => c.eventId === eventId && c.claimant === currentUser.username);
+        let total = myClaims.reduce((s,c) => s + c.amount, 0);
+        
+        let html = `
+            <div style="margin-top:20px;">
+                <div class="event-detail-header">
+                    <h3><i class="fas fa-calendar-alt"></i> ${escapeHtml(event.name)}</h3>
+                    <p style="margin-top:5px;">
+                        ${event.eventDate ? `<strong>Event Date:</strong> ${event.eventDate}<br>` : ''}
+                        ${event.setupDate ? `<strong>Setup Date:</strong> ${event.setupDate}<br>` : ''}
+                        ${event.venue ? `<strong>Venue:</strong> ${escapeHtml(event.venue)}<br>` : ''}
+                        ${event.pic ? `<strong>PIC:</strong> ${escapeHtml(event.pic)}` : ''}
+                    </p>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; margin-bottom:15px; flex-wrap:wrap;">
+                    <h3>My Claims (Total: RM ${total.toFixed(2)})</h3>
+                    <button class="btn btn-primary" onclick="showAddClaimForm('${eventId}')">+ Add Claims (Multiple Receipts)</button>
+                </div>
+        `;
+        
+        if (myClaims.length === 0) {
+            html += '<p>No claims yet.</p>';
+        } else {
+            html += `<table class="claim-table"><thead><tr><th style="width:9%">Date</th><th style="width:9%">Day</th><th style="width:12%">Category</th><th style="width:9%">Amount</th><th style="width:8%">Currency</th><th style="width:10%">Type</th><th style="width:10%">Paid By</th><th style="width:14%">Remarks</th><th style="width:10%">Receipt</th><th style="width:9%">Actions</th></tr></thead><tbody>`;
+            myClaims.forEach(c => {
+                let displayCategory = c.category === 'Others' && c.otherCategory ? `${c.category}: ${c.otherCategory}` : c.category;
+                html += `<tr>
+                    <td style="vertical-align:middle;">${c.date}</td>
+                    <td style="vertical-align:middle;">${c.dayType || '-'}</td>
+                    <td style="vertical-align:middle;">${displayCategory}</td>
+                    <td style="text-align:right; vertical-align:middle;">${c.amount.toFixed(2)}</td>
+                    <td style="vertical-align:middle;">${c.currency || 'MYR'}</td>
+                    <td style="vertical-align:middle;">${c.claimType === 'myClaim' ? 'My Claim' : 'Petty Cash'}</td>
+                    <td style="vertical-align:middle;">${c.claimType === 'petty' ? (c.paidBy || '-') : '-'}</td>
+                    <td style="vertical-align:middle;">${escapeHtml(c.remarks) || '-'}</td>
+                    <td style="text-align:center; vertical-align:middle;">${c.receiptImage ? `<img src="${c.receiptImage}" class="receipt-preview" onclick="event.stopPropagation(); showImagePreview('${c.receiptImage}')">` : '-'}</td>
+                    <td class="action-buttons" style="vertical-align:middle;">
+                        <button class="btn btn-info" style="padding:4px 8px;" onclick="editClaim('${c.id}', '${eventId}')">Edit</button>
+                        <button class="btn btn-danger" style="padding:4px 8px;" onclick="deleteClaim('${c.id}', '${eventId}')">Delete</button>
+                    </td>
+                </tr>`;
+            });
+            html += `</tbody></table>`;
+        }
+        
+        html += `</div>`;
+        document.getElementById('eventClaimsPanel').innerHTML = html;
+    }
+    
+    // ============ CLAIM FORM ============
+    let tempReceipts = [];
+    
+    function showAddClaimForm(eventId) {
+        tempReceipts = [];
+        let formHtml = `
+            <div id="addClaimForm" class="inline-form">
+                <h4><i class="fas fa-camera"></i> Add Claims with OCR (Multiple Receipts)</h4>
+                <div class="upload-area" id="multiUploadZone">
+                    <i class="fas fa-images fa-3x" style="color:#f59e0b;"></i>
+                    <p><strong>Click or drag multiple receipt images</strong> (OCR will extract date, amount, currency, category)</p>
+                    <input type="file" id="multiFileInput" multiple accept="image/*" style="display:none;">
+                </div>
+                <div id="batchOcrProgress" class="ocr-progress">
+                    <div class="progress-bar"><div class="progress-fill" id="batchProgressFill"></div></div>
+                    <p class="ocr-status-text" id="batchStatusText">Processing receipts...</p>
+                </div>
+                <div id="receiptsBatchPreview" class="receipts-grid"></div>
+                <div style="display:flex; gap:10px; margin-top:15px;">
+                    <button class="btn btn-primary" onclick="saveAllReceipts('${eventId}')">Save All (${tempReceipts.length} receipts)</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('addClaimForm').remove()">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('eventClaimsPanel').insertAdjacentHTML('beforeend', formHtml);
+        
+        let uploadZone = document.getElementById('multiUploadZone');
+        let fileInput = document.getElementById('multiFileInput');
+        
+        uploadZone.onclick = () => fileInput.click();
+        uploadZone.ondrop = (e) => { e.preventDefault(); processMultipleFiles(Array.from(e.dataTransfer.files)); };
+        fileInput.onchange = (e) => processMultipleFiles(Array.from(e.target.files));
+        
+        async function processMultipleFiles(files) {
+            let imageFiles = files.filter(f => f.type.match('image.*'));
+            if (imageFiles.length === 0) return;
+            
+            document.getElementById('batchOcrProgress').style.display = 'block';
+            
+            for (let i = 0; i < imageFiles.length; i++) {
+                let file = imageFiles[i];
+                let percent = ((i + 1) / imageFiles.length) * 100;
+                document.getElementById('batchProgressFill').style.width = percent + '%';
+                document.getElementById('batchStatusText').innerHTML = `Processing ${i+1}/${imageFiles.length}: ${file.name}`;
+                
+                const reader = new FileReader();
+                const result = await new Promise((resolve) => {
+                    reader.onload = async (e) => {
+                        const imageData = e.target.result;
+                        const extracted = await extractReceiptData(imageData);
+                        resolve({
+                            id: Date.now() + '_' + i,
+                            image: imageData,
+                            date: extracted.date,
+                            amount: extracted.amount,
+                            currency: extracted.currency,
+                            category: extracted.category,
+                            otherCategory: '',
+                            dayType: 'Event',
+                            remarks: '',
+                            claimType: 'myClaim',
+                            paidBy: '',
+                            fileName: file.name
+                        });
+                    };
+                    reader.readAsDataURL(file);
+                });
+                tempReceipts.push(result);
+            }
+            
+            document.getElementById('batchOcrProgress').style.display = 'none';
+            renderReceiptsPreview();
+        }
+        
+        function renderReceiptsPreview() {
+            let container = document.getElementById('receiptsBatchPreview');
+            container.innerHTML = tempReceipts.map(r => `
+                <div class="receipt-card-item">
+                    <img src="${r.image}" class="receipt-preview" style="width:100%; height:100px; object-fit:contain;" onclick="showImagePreview('${r.image}')">
+                    <div style="font-size:11px; margin-top:5px;">
+                        <div>📅 <input type="date" value="${r.date}" onchange="updateReceiptField('${r.id}', 'date', this.value)" style="width:100%; padding:2px;"></div>
+                        <div>📆 Day: 
+                            <select onchange="updateReceiptField('${r.id}', 'dayType', this.value)" style="width:100%; padding:2px;">
+                                ${dayOptions.map(d => `<option ${r.dayType === d ? 'selected' : ''}>${d}</option>`).join('')}
+                            </select>
+                        </div>
+                        <div>💰 <input type="number" step="0.01" value="${r.amount}" onchange="updateReceiptField('${r.id}', 'amount', parseFloat(this.value)||0)" style="width:100%; padding:2px;"></div>
+                        <div>💱 <select onchange="updateReceiptField('${r.id}', 'currency', this.value)" style="width:100%; padding:2px;">
+                            ${currencies.map(c => `<option ${r.currency === c ? 'selected' : ''}>${c}</option>`).join('')}
+                        </select></div>
+                        <div>🏷️ 
+                            <select onchange="toggleOtherCategory(this, '${r.id}')" style="width:100%; padding:2px;">
+                                <option ${r.category === 'Meals' ? 'selected' : ''}>Meals</option>
+                                <option ${r.category === 'Parking' ? 'selected' : ''}>Parking</option>
+                                <option ${r.category === 'Toll' ? 'selected' : ''}>Toll</option>
+                                <option ${r.category === 'Petrol' ? 'selected' : ''}>Petrol</option>
+                                <option ${r.category === 'Transport' ? 'selected' : ''}>Transport</option>
+                                <option ${r.category === 'Others' ? 'selected' : ''}>Others</option>
+                            </select>
+                        </div>
+                        <div id="otherCat_${r.id}" style="display:${r.category === 'Others' ? 'block' : 'none'}">
+                            <input type="text" placeholder="Specify category" value="${r.otherCategory}" onchange="updateReceiptField('${r.id}', 'otherCategory', this.value)" style="width:100%; padding:2px;">
+                        </div>
+                        <div>📝 <input type="text" placeholder="Remarks" value="${r.remarks}" onchange="updateReceiptField('${r.id}', 'remarks', this.value)" style="width:100%; padding:2px;"></div>
+                        <div>🏷️ Claim Type:
+                            <select onchange="togglePaidByField(this, '${r.id}')" style="width:100%; padding:2px;">
+                                <option value="myClaim" ${r.claimType === 'myClaim' ? 'selected' : ''}>My Claim</option>
+                                <option value="petty" ${r.claimType === 'petty' ? 'selected' : ''}>Petty Cash</option>
+                            </select>
+                        </div>
+                        <div id="paidByDiv_${r.id}" style="display:${r.claimType === 'petty' ? 'block' : 'none'}">
+                            <input type="text" placeholder="Paid by (who used petty cash?)" value="${r.paidBy}" onchange="updateReceiptField('${r.id}', 'paidBy', this.value)" style="width:100%; padding:2px;">
+                        </div>
+                        <button class="btn btn-danger" style="margin-top:5px; padding:2px 8px; font-size:10px;" onclick="removeReceipt('${r.id}')">Remove</button>
+                    </div>
+                </div>
+            `).join('');
+            
+            let saveBtn = document.querySelector('#addClaimForm .btn-primary');
+            if (saveBtn) saveBtn.innerHTML = `Save All (${tempReceipts.length} receipts)`;
+        }
+        
+        window.toggleOtherCategory = function(select, id) {
+            let isOther = select.value === 'Others';
+            let otherDiv = document.getElementById(`otherCat_${id}`);
+            if (otherDiv) otherDiv.style.display = isOther ? 'block' : 'none';
+            updateReceiptField(id, 'category', select.value);
+        };
+        
+        window.togglePaidByField = function(select, id) {
+            let isPetty = select.value === 'petty';
+            let paidByDiv = document.getElementById(`paidByDiv_${id}`);
+            if (paidByDiv) paidByDiv.style.display = isPetty ? 'block' : 'none';
+            updateReceiptField(id, 'claimType', select.value);
+        };
+        
+        window.updateReceiptField = function(id, field, value) {
+            let receipt = tempReceipts.find(r => r.id === id);
+            if (receipt) receipt[field] = value;
+        };
+        
+        window.removeReceipt = function(id) {
+            tempReceipts = tempReceipts.filter(r => r.id !== id);
+            renderReceiptsPreview();
+        };
+        
+        window.saveAllReceipts = function(eventId) {
+            if (tempReceipts.length === 0) { alert('No receipts to save'); return; }
+            
+            for (let r of tempReceipts) {
+                if (r.amount <= 0) continue;
+                claims.push({
+                    id: Date.now().toString() + '_' + Math.random(),
+                    eventId: eventId,
+                    claimant: currentUser.username,
+                    date: r.date,
+                    dayType: r.dayType || 'Event',
+                    amount: r.amount,
+                    currency: r.currency || 'MYR',
+                    category: r.category,
+                    otherCategory: r.otherCategory || '',
+                    remarks: r.remarks || '',
+                    claimType: r.claimType,
+                    paidBy: r.paidBy || '',
+                    receiptImage: r.image,
+                    createdAt: new Date().toISOString()
+                });
+            }
+            saveClaims();
+            document.getElementById('addClaimForm')?.remove();
+            showEventClaims(eventId);
+            renderEvents();
+            renderReportEvents();
+            alert(`${tempReceipts.length} claims saved!`);
+        };
+    }
+    
+    function editClaim(claimId, eventId) {
+        let claim = claims.find(c => c.id === claimId);
+        if (!claim) return;
+        
+        let formHtml = `
+            <div id="editClaimForm" class="inline-form">
+                <h4>Edit Claim</h4>
+                <div class="form-group"><label>Date</label><input type="date" id="editDate" value="${claim.date}"></div>
+                <div class="form-group"><label>Day Type</label>
+                    <select id="editDayType">
+                        ${dayOptions.map(d => `<option ${claim.dayType === d ? 'selected' : ''}>${d}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="form-group"><label>Amount</label><input type="number" id="editAmount" step="0.01" value="${claim.amount}"></div>
+                <div class="form-group"><label>Currency</label>
+                    <select id="editCurrency">${currencies.map(c => `<option ${claim.currency === c ? 'selected' : ''}>${c}</option>`).join('')}</select>
+                </div>
+                <div class="form-group"><label>Category</label>
+                    <select id="editCategory" onchange="toggleEditOtherCategory(this)">
+                        <option ${claim.category === 'Meals' ? 'selected' : ''}>Meals</option>
+                        <option ${claim.category === 'Parking' ? 'selected' : ''}>Parking</option>
+                        <option ${claim.category === 'Toll' ? 'selected' : ''}>Toll</option>
+                        <option ${claim.category === 'Petrol' ? 'selected' : ''}>Petrol</option>
+                        <option ${claim.category === 'Transport' ? 'selected' : ''}>Transport</option>
+                        <option ${claim.category === 'Others' ? 'selected' : ''}>Others</option>
+                    </select>
+                </div>
+                <div id="editOtherDiv" style="display:${claim.category === 'Others' ? 'block' : 'none'}">
+                    <div class="form-group"><label>Specify Category</label><input type="text" id="editOtherCategory" value="${escapeHtml(claim.otherCategory)}"></div>
+                </div>
+                <div class="form-group"><label>Claim Type</label>
+                    <select id="editClaimType" onchange="toggleEditPaidByField(this)">
+                        <option value="myClaim" ${claim.claimType === 'myClaim' ? 'selected' : ''}>My Claim</option>
+                        <option value="petty" ${claim.claimType === 'petty' ? 'selected' : ''}>Petty Cash</option>
+                    </select>
+                </div>
+                <div id="editPaidByDiv" style="display:${claim.claimType === 'petty' ? 'block' : 'none'}">
+                    <div class="form-group"><label>Paid By (Petty Cash)</label><input type="text" id="editPaidBy" value="${escapeHtml(claim.paidBy || '')}"></div>
+                </div>
+                <div class="form-group"><label>Remarks</label><textarea id="editRemarks" rows="2">${escapeHtml(claim.remarks)}</textarea></div>
+                <div style="display:flex; gap:10px;">
+                    <button class="btn btn-primary" onclick="updateClaim('${claimId}', '${eventId}')">Update</button>
+                    <button class="btn btn-secondary" onclick="document.getElementById('editClaimForm').remove()">Cancel</button>
+                </div>
+            </div>
+        `;
+        document.getElementById('eventClaimsPanel').insertAdjacentHTML('beforeend', formHtml);
+        
+        window.toggleEditOtherCategory = function(select) {
+            let div = document.getElementById('editOtherDiv');
+            if (div) div.style.display = select.value === 'Others' ? 'block' : 'none';
+        };
+        
+        window.toggleEditPaidByField = function(select) {
+            let div = document.getElementById('editPaidByDiv');
+            if (div) div.style.display = select.value === 'petty' ? 'block' : 'none';
+        };
+    }
+    
+    function updateClaim(claimId, eventId) {
+        let claim = claims.find(c => c.id === claimId);
+        if (claim) {
+            claim.date = document.getElementById('editDate').value;
+            claim.dayType = document.getElementById('editDayType').value;
+            claim.amount = parseFloat(document.getElementById('editAmount').value);
+            claim.currency = document.getElementById('editCurrency').value;
+            claim.category = document.getElementById('editCategory').value;
+            claim.otherCategory = document.getElementById('editOtherCategory')?.value || '';
+            claim.claimType = document.getElementById('editClaimType').value;
+            claim.paidBy = document.getElementById('editPaidBy')?.value || '';
+            claim.remarks = document.getElementById('editRemarks').value;
+            saveClaims();
+        }
+        document.getElementById('editClaimForm')?.remove();
+        showEventClaims(eventId);
+        renderEvents();
+        renderReportEvents();
+        alert('Claim updated!');
+    }
+    
+    function deleteClaim(claimId, eventId) {
+        if (confirm('Delete this claim?')) {
+            claims = claims.filter(c => c.id !== claimId);
+            saveClaims();
+            showEventClaims(eventId);
+            renderEvents();
+            renderReportEvents();
+        }
+    }
+    
+    function showImagePreview(imageSrc) {
+        const modal = document.createElement('div');
+        modal.className = 'image-preview-modal';
+        modal.onclick = () => modal.remove();
+        modal.innerHTML = `<img src="${imageSrc}">`;
+        document.body.appendChild(modal);
+    }
+    
+    // ============ USER MANAGEMENT ============
+    function renderUsers() {
+        let container = document.getElementById('usersList');
+        // Add export/import buttons
+        const exportBtn = `<div style="margin-bottom:15px;"><button class="btn btn-success" onclick="exportData()" style="margin-right:10px;"><i class="fas fa-download"></i> Export Data (Share)</button><button class="btn btn-secondary" onclick="importData()"><i class="fas fa-upload"></i> Import Data (Merge)</button></div>`;
+        container.innerHTML = exportBtn + `<table class="claim-table"><thead><tr><th style="width:50%">Username</th><th style="width:50%">Actions</th></tr></thead><tbody>
+            ${users.map(u => `<tr>
+                <td style="vertical-align:middle;">${escapeHtml(u.username)}</td>
+                <td style="vertical-align:middle;">
+                    <button class="btn btn-danger" onclick="deleteUser('${u.id}')">Delete</button>
+                    <button class="btn btn-primary" onclick="changePassword('${u.id}')">Change PW</button>
+                </td>
+            </tr>`).join('')}
+        </tbody><table>`;
+    }
+    
+    function createUser() {
+        let username = document.getElementById('newUser').value.trim();
+        let password = document.getElementById('newPass').value;
+        if (!username || !password) { alert('Enter username/password'); return; }
+        if (users.find(u => u.username === username)) { alert('Exists'); return; }
+        users.push({ id: Date.now().toString(), username, password });
+        saveUsers();
+        renderUsers();
+        document.getElementById('newUser').value = '';
+        document.getElementById('newPass').value = '';
+        alert('User created!');
+    }
+    
+    function deleteUser(id) { 
+        if (confirm('Delete this user?')) {
+            users = users.filter(u => u.id !== id);
+            saveUsers();
+            renderUsers();
+        }
+    }
+    
+    function changePassword(id) { 
+        let np = prompt('New password:'); 
+        if (np) { 
+            let u = users.find(u => u.id === id); 
+            u.password = np; 
+            saveUsers(); 
+            alert('Password changed!');
+        } 
+    }
+    
+    // ============ REPORTS ============
+    function renderReportEvents() {
+        let container = document.getElementById('eventsReportList');
+        if (events.length === 0) {
+            container.innerHTML = '<p>No events yet.</p>';
+            return;
+        }
+        container.innerHTML = events.map(ev => {
+            let account = accounts.find(a => a.id === ev.accountId);
+            let eventClaims = claims.filter(c => c.eventId === ev.id);
+            let total = eventClaims.reduce((s,c) => s + c.amount, 0);
+            return `
+                <div class="folder-item" onclick="showEventReport('${ev.id}')">
+                    <div>
+                        <strong>📅 ${escapeHtml(ev.name)}</strong>
+                        <div style="font-size:12px; color:#78350f;">
+                            ${account ? `📁 ${escapeHtml(account.name)}` : ''}
+                            ${ev.eventDate ? ` | 📅 ${ev.eventDate}` : ''}
+                        </div>
+                        <div style="font-size:11px;">💰 Total: RM ${total.toFixed(2)} | 🧾 ${eventClaims.length} claims</div>
+                    </div>
+                    <i class="fas fa-chevron-right"></i>
+                </div>
+            `;
+        }).join('');
+    }
+    
+    function filterReportEvents() {
+        let searchTerm = document.getElementById('reportSearchInput').value.toLowerCase();
+        let eventsList = document.querySelectorAll('#eventsReportList .folder-item');
+        eventsList.forEach(item => {
+            let text = item.innerText.toLowerCase();
+            item.style.display = text.includes(searchTerm) ? 'flex' : 'none';
+        });
+    }
+    
+    function showEventReport(eventId) {
+        let event = events.find(e => e.id === eventId);
+        if (!event) return;
+        
+        let eventClaims = claims.filter(c => c.eventId === eventId);
+        let partTimerList = partTimers.filter(p => p.eventId === eventId);
+        
+        let claimsByCategory = {};
+        eventClaims.forEach(c => {
+            let groupKey = c.category;
+            if (!claimsByCategory[groupKey]) claimsByCategory[groupKey] = [];
+            claimsByCategory[groupKey].push(c);
+        });
+        
+        let html = `<div class="print-report" style="margin-top:20px;"><div class="event-detail-header">
+            <h3>📋 ${escapeHtml(event.name)} - Full Report</h3>
+            <p>${event.eventDate ? `Event Date: ${event.eventDate} | ` : ''}${event.venue ? `Venue: ${escapeHtml(event.venue)}` : ''}</p>
+        </div>`;
+        
+        for (let cat of categoryOrder) {
+            if (claimsByCategory[cat] && claimsByCategory[cat].length > 0) {
+                let catTotal = claimsByCategory[cat].reduce((s,c) => s + c.amount, 0);
+                html += `<h3 style="margin-top:20px; background:#f59e0b; color:white; padding:8px 12px; border-radius:8px; clear:both;">📁 ${cat} (Total: RM ${catTotal.toFixed(2)})</h3>`;
+                html += `<table class="report-table">
+                    <thead>
+                        <tr>
+                            <th style="width:10%">Date</th>
+                            <th style="width:10%">Day</th>
+                            <th style="width:12%">Claimant / Paid By</th>
+                            <th style="width:25%">Description</th>
+                            <th style="width:10%">Amount</th>
+                            <th style="width:8%">Currency</th>
+                            <th style="width:10%">Type</th>
+                            <th style="width:15%">Receipt</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
+                claimsByCategory[cat].forEach(c => {
+                    let responsible = c.claimType === 'myClaim' ? c.claimant : (c.paidBy || c.claimant);
+                    let displayCategory = (c.category === 'Others' && c.otherCategory) ? `Others: ${c.otherCategory}` : c.category;
+                    html += `<tr>
+                        <td>${c.date}</td>
+                        <td>${c.dayType || '-'}</td>
+                        <td>${escapeHtml(responsible)}</td>
+                        <td>${escapeHtml(c.remarks) || '-'} <br><small style="color:#f59e0b;">[${displayCategory}]</small></td>
+                        <td style="text-align:right;">${c.amount.toFixed(2)}</td>
+                        <td>${c.currency || 'MYR'}</td>
+                        <td>${c.claimType === 'myClaim' ? 'My Claim' : 'Petty Cash'}</td>
+                        <td style="text-align:center;">${c.receiptImage ? `<img src="${c.receiptImage}" style="max-width:120px; max-height:100px; object-fit:contain; cursor:pointer;" onclick="showImagePreview('${c.receiptImage}')">` : '-'}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+            }
+        }
+        
+        if (Object.keys(claimsByCategory).length === 0) {
+            html += `<p style="text-align:center; padding:20px;">No claims submitted for this event yet.</p>`;
+        }
+        
+        let summaryByPerson = {};
+        eventClaims.forEach(c => {
+            let person = c.claimType === 'myClaim' ? c.claimant : (c.paidBy || c.claimant);
+            let currency = c.currency || 'MYR';
+            if (!summaryByPerson[person]) summaryByPerson[person] = {};
+            if (!summaryByPerson[person][currency]) summaryByPerson[person][currency] = 0;
+            summaryByPerson[person][currency] += c.amount;
+        });
+        
+        if (Object.keys(summaryByPerson).length > 0) {
+            html += `<div style="margin-top:20px; background:#fef3c7; padding:15px; border-radius:12px;">
+                <h4>💰 Summary by Person (by Currency)</h4>`;
+            for (let [person, currencies] of Object.entries(summaryByPerson)) {
+                let currencyItems = [];
+                for (let [curr, amount] of Object.entries(currencies)) {
+                    currencyItems.push(`${curr} ${amount.toFixed(2)}`);
+                }
+                html += `<div style="margin-top:8px;"><strong>${escapeHtml(person)}:</strong> ${currencyItems.join(' | ')}</div>`;
+            }
+            html += `</div>`;
+        }
+        
+        if (partTimerList.length > 0) {
+            let ptTotal = partTimerList.reduce((s,p) => s + p.totalWage, 0);
+            html += `<div style="margin-top:20px;">
+                <h3>👥 Part Timers (Total Wages: RM ${ptTotal.toFixed(2)})</h3>
+                <table class="report-table">
+                    <thead><tr><th>Name</th><th>IC Number</th><th>Days</th><th>Wage/Day</th><th>Total</th><th>Document</th></tr></thead>
+                    <tbody>`;
+            partTimerList.forEach(p => {
+                html += `<tr><td>${escapeHtml(p.name)}</td><td>${escapeHtml(p.icNumber)}</td><td>${p.days}</td><td>RM ${p.wagePerDay}</td><td>RM ${p.totalWage}</td><td style="text-align:center;">${p.documentImage ? `<img src="${p.documentImage}" style="max-width:60px;" onclick="showImagePreview('${p.documentImage}')">` : '-'}</td></tr>`;
+            });
+            html += `</tbody></table></div>`;
+        }
+        
+        html += `<div class="no-print" style="margin-top:20px;"><button class="btn btn-success" onclick="window.print()"><i class="fas fa-print"></i> Print Report</button></div>`;
+        html += `</div>`;
+        
+        document.getElementById('eventReportDetail').innerHTML = html;
+    }
+    
+    function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    
+    loadData();
+</script>
+</body>
+</html>
